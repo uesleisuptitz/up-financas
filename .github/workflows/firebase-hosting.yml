@@ -1,0 +1,43 @@
+# Deploy automático no push da master.
+# Secret obrigatório no repositório: FIREBASE_SERVICE_ACCOUNT_UP_FINANCAS
+# JSON da conta de serviço com os papéis Firebase Hosting Admin e Firebase Rules Admin.
+
+name: Deploy to Firebase Hosting
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+      - run: CI=false yarn build
+
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_UP_FINANCAS }}
+          channelId: live
+          projectId: up-financas
+
+      - name: Deploy Firestore rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_UP_FINANCAS }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npx -y firebase-tools@13 deploy --only firestore --project up-financas --non-interactive

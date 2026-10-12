@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Mantenha os mesmos e-mails de src/constants/allowed-users.ts
+    function isCouple() {
+      return request.auth != null
+        && request.auth.token.email.lower() in [
+          'uesleisuptitz@gmail.com',
+          'britopaola216@gmail.com'
+        ];
+    }
+
+    match /{document=**} {
+      allow read, write: if isCouple();
+    }
+  }
+}
