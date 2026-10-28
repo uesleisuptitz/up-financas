@@ -1,4 +1,3 @@
-import { FormControl } from "@mui/material";
 import styled from "styled-components";
 
 export const Page = styled.section`
@@ -18,26 +17,6 @@ export const Sections = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2rem;
-`;
-
-export const YearField = styled(FormControl)`
-  width: 6.5rem;
-
-  @media (max-width: 599px) {
-    width: 5.25rem;
-
-    .MuiSelect-select {
-      padding-top: 8.5px;
-      padding-bottom: 8.5px;
-      padding-left: 8px;
-      padding-right: 22px;
-      font-size: 0.8125rem;
-    }
-
-    .MuiSelect-icon {
-      right: 0;
-    }
-  }
 `;
 
 export const Scroll = styled.div`

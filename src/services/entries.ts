@@ -9,7 +9,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
-import { CategoryKind, monthPlanId } from "./categories";
+import { CategoryKind, formatCategoryName, monthPlanId } from "./categories";
 import { firestore } from "./firebase";
 
 const STORED_PAYMENT_LABELS: Record<string, string> = {
@@ -66,7 +66,7 @@ export const subscribeMonthEntries = (
         return {
           id: document.id,
           categoryId: String(data.categoryId ?? ""),
-          categoryName: String(data.categoryName ?? ""),
+          categoryName: formatCategoryName(String(data.categoryName ?? "")),
           name: String(data.name ?? ""),
           emoji: String(data.emoji ?? ""),
           value: Number(data.value ?? 0),
@@ -128,7 +128,7 @@ const entryFields = (input: {
   paymentMethod: string | null;
 }) => ({
   categoryId: input.categoryId,
-  categoryName: input.categoryName.trim(),
+  categoryName: formatCategoryName(input.categoryName),
   name: input.name.trim(),
   emoji: input.emoji,
   value: input.value,

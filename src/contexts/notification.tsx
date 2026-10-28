@@ -45,7 +45,10 @@ export const NotificationProvider = ({
         open={!!notification?.type}
         autoHideDuration={notification?.duration}
         onClose={() => setNotification(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{
+          top: { xs: "calc(56px + 0.75rem)", sm: "calc(64px + 0.75rem)" },
+        }}
       >
         {notification?.type ? (
           <Alert

@@ -136,7 +136,7 @@ const CategoryModal = ({
             <TextField
               label="Nome"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => setName(event.target.value.toLocaleUpperCase("pt-BR"))}
               error={!!nameError}
               helperText={nameError}
               disabled={saving}

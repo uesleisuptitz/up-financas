@@ -2,23 +2,20 @@ import { Add } from "@mui/icons-material";
 import {
   CircularProgress,
   Dialog,
-  Divider,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  LinearProgress,
   List,
   ListItemButton,
   Tab,
   Tabs,
   Typography,
-  useMediaQuery,
-  useTheme,
 } from "@mui/material";
-import { Fragment, PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
+import { PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
 import { Button } from "../../components";
 import { useHomePeriod, useFormatCurrency, useNotification } from "../../contexts";
+import { suppressHoldReleaseClick } from "../../utils";
 import {
   CategoryKind,
   MonthCategory,
@@ -28,21 +25,18 @@ import {
   subscribeMonthCategories,
   subscribeMonthEntries,
 } from "../../services";
-import { categoryColor } from "./colors";
 import EntryModal from "./entry-modal";
-import MonthChart from "./month-chart";
 import * as S from "./styles";
 
 const HOLD_MS = 500;
 
 interface StatementRowProps {
   entry: MonthEntry;
-  striped: boolean;
   onOpen: (entry: MonthEntry) => void;
   onHold: (entry: MonthEntry) => void;
 }
 
-const StatementRow = ({ entry, striped, onOpen, onHold }: StatementRowProps) => {
+const StatementRow = ({ entry, onOpen, onHold }: StatementRowProps) => {
   const formatMoney = useFormatCurrency();
   const press = useRef({ timer: 0, x: 0, y: 0, held: false });
 
@@ -63,20 +57,7 @@ const StatementRow = ({ entry, striped, onOpen, onHold }: StatementRowProps) => 
       press.current.held = true;
       press.current.timer = 0;
       onHold(entry);
-      window.addEventListener(
-        "pointerup",
-        () => {
-          window.addEventListener(
-            "click",
-            (clickEvent) => {
-              clickEvent.preventDefault();
-              clickEvent.stopPropagation();
-            },
-            { capture: true, once: true }
-          );
-        },
-        { once: true }
-      );
+      suppressHoldReleaseClick();
     }, HOLD_MS);
   };
 
@@ -105,27 +86,27 @@ const StatementRow = ({ entry, striped, onOpen, onHold }: StatementRowProps) => 
         onOpen(entry);
       }}
       sx={{
-        gap: "0.75rem",
-        px: "0.75rem",
-        backgroundColor: striped ? "grey.200" : "transparent",
+        flexDirection: "column",
+        alignItems: "stretch",
+        gap: "0.1rem",
+        px: "0.85rem",
+        py: "0.55rem",
+        backgroundColor: "transparent",
         userSelect: "none",
         WebkitTouchCallout: "none",
       }}
     >
-      <S.Emoji aria-hidden>{entry.emoji}</S.Emoji>
-      <S.EntryText>
-        <Typography>{entry.name}</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {[
-            entry.categoryName,
-            formatEntryDate(entry.date),
-            entry.paymentMethod ? paymentMethodLabel(entry.paymentMethod) : "",
-          ]
-            .filter(Boolean)
-            .join(" · ")}
+      <S.EntryLine>
+        <Typography noWrap fontWeight={500}>
+          {entry.name}
         </Typography>
-      </S.EntryText>
-      <Typography>{formatMoney(entry.value)}</Typography>
+        <Typography sx={{ flexShrink: 0 }}>{formatMoney(entry.value)}</Typography>
+      </S.EntryLine>
+      <Typography variant="body2" color="text.secondary">
+        {entry.paymentMethod
+          ? `${formatEntryDate(entry.date)} - ${paymentMethodLabel(entry.paymentMethod)}`
+          : formatEntryDate(entry.date)}
+      </Typography>
     </ListItemButton>
   );
 };
@@ -138,14 +119,10 @@ const formatEntryDate = (value: string) => {
 };
 
 const Home = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"), { noSsr: true });
-  const statementTitleRef = useRef<HTMLHeadingElement>(null);
   const { handleNotification } = useNotification();
   const { year, month } = useHomePeriod();
   const formatMoney = useFormatCurrency();
   const [kind, setKind] = useState<CategoryKind>("expense");
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [categories, setCategories] = useState<MonthCategory[]>([]);
   const [entries, setEntries] = useState<MonthEntry[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -187,31 +164,42 @@ const Home = () => {
     );
   }, [year, month, handleNotification]);
 
-  useEffect(() => {
-    setSelectedCategoryId(null);
-  }, [year, month]);
-
   const planned = categories.filter((category) => category.kind === kind);
   const statement = entries.filter((entry) => entry.kind === kind);
-  const visibleStatement = selectedCategoryId
-    ? statement.filter((entry) => entry.categoryId === selectedCategoryId)
-    : statement;
+  const statementGroups = planned.map((category) => ({
+    id: category.id,
+    name: category.name,
+    emoji: category.emoji,
+    limit: category.limit,
+    entries: statement.filter((entry) => entry.categoryId === category.id),
+  }));
+  const groupedIds = new Set(planned.map((category) => category.id));
+  const extraGroups = statement
+    .filter((entry) => !groupedIds.has(entry.categoryId))
+    .reduce<typeof statementGroups>((groups, entry) => {
+      const current = groups.find((group) => group.id === entry.categoryId);
+      if (current) {
+        current.entries.push(entry);
+        return groups;
+      }
+      groups.push({
+        id: entry.categoryId,
+        name: entry.categoryName,
+        emoji: entry.emoji,
+        limit: 0,
+        entries: [entry],
+      });
+      return groups;
+    }, []);
+  const extratoGroups = [...statementGroups, ...extraGroups];
   const spentByCategory = statement.reduce((totals, entry) => {
     totals.set(entry.categoryId, (totals.get(entry.categoryId) ?? 0) + entry.value);
     return totals;
   }, new Map<string, number>());
 
-  const chartItems = planned.flatMap((category, index) => {
-    if (category.limit <= 0) return [];
-    return [
-      {
-        name: category.name,
-        emoji: category.emoji,
-        value: category.limit,
-        color: categoryColor(index),
-      },
-    ];
-  });
+  const spentTotal = statement.reduce((total, entry) => total + entry.value, 0);
+  const plannedTotal = planned.reduce((total, category) => total + category.limit, 0);
+  const behindPlan = kind === "expense" ? spentTotal > plannedTotal : spentTotal < plannedTotal;
 
   const closeModal = () => {
     setModalOpen(false);
@@ -235,22 +223,12 @@ const Home = () => {
   const loading = loadingCategories || loadingEntries;
   const emptyCategories =
     kind === "income" ? "Nenhuma renda neste mês." : "Nenhuma despesa neste mês.";
-  const emptyStatement = selectedCategoryId
-    ? kind === "income"
-      ? "Nenhuma renda nesta categoria."
-      : "Nenhuma despesa nesta categoria."
-    : kind === "income"
-      ? "Nenhuma renda lançada neste mês."
-      : "Nenhuma despesa lançada neste mês.";
 
   return (
     <S.Page>
       <Tabs
         value={kind}
-        onChange={(_, value: CategoryKind) => {
-          setKind(value);
-          setSelectedCategoryId(null);
-        }}
+        onChange={(_, value: CategoryKind) => setKind(value)}
         variant="fullWidth"
       >
         <Tab label="Despesas" value="expense" />
@@ -260,107 +238,54 @@ const Home = () => {
         <CircularProgress size={24} aria-label="Carregando o mês" />
       ) : (
         <S.MonthLayout>
-          <S.PlanColumn>
-          <MonthChart items={chartItems} />
-          <section>
-            {planned.length === 0 ? (
-              <Typography color="text.secondary">{emptyCategories}</Typography>
-            ) : (
-              <S.CategoryList>
-                {planned.map((category) => {
-                  const spent = spentByCategory.get(category.id) ?? 0;
-                  const remaining = category.limit - spent;
-                  const percent =
-                    category.limit <= 0
-                      ? spent > 0
-                        ? 100
-                        : 0
-                      : Math.min(100, (spent / category.limit) * 100);
-                  const over = remaining < 0;
+          <S.SpendSummary>
+            <S.SpentAmount $over={behindPlan}>{formatMoney(spentTotal)}</S.SpentAmount>
+            <S.PlannedHint>de {formatMoney(plannedTotal)}</S.PlannedHint>
+          </S.SpendSummary>
+          {extratoGroups.length === 0 ? (
+            <Typography color="text.secondary">{emptyCategories}</Typography>
+          ) : (
+            <S.StatementGroups>
+              {extratoGroups.map((group) => {
+                const spent = spentByCategory.get(group.id) ?? 0;
+                const difference = kind === "income" ? spent - group.limit : group.limit - spent;
+                const favorable = kind === "expense" ? spent < group.limit : spent > group.limit;
+                const unfavorable = kind === "expense" ? spent > group.limit : spent < group.limit;
+                const differenceColor = unfavorable ? "error" : favorable ? "primary" : "text.primary";
 
-                  const selected = selectedCategoryId === category.id;
-
-                  return (
-                    <S.CategoryItem key={category.id}>
-                      <S.CategoryButton
-                        type="button"
-                        $selected={selected}
-                        aria-pressed={selected}
-                        onClick={() => {
-                          const next = selected ? null : category.id;
-                          setSelectedCategoryId(next);
-                          if (!next || !isMobile) return;
-                          const title = statementTitleRef.current;
-                          const scroller = title?.closest("main");
-                          if (!title || !(scroller instanceof HTMLElement)) return;
-                          const headerHeight =
-                            scroller.parentElement
-                              ?.querySelector(".MuiAppBar-root")
-                              ?.getBoundingClientRect().height ?? 0;
-                          const top =
-                            scroller.scrollTop +
-                            title.getBoundingClientRect().top -
-                            scroller.getBoundingClientRect().top -
-                            headerHeight;
-                          scroller.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-                        }}
-                      >
-                      <S.CategoryHeading>
-                        <S.CategoryName>
-                          <S.Emoji aria-hidden>{category.emoji}</S.Emoji>
-                          <Typography noWrap>{category.name}</Typography>
-                        </S.CategoryName>
-                        <S.CategoryAmounts>
-                          <Typography variant="body2" color="text.secondary">
-                            {formatMoney(spent)} / {formatMoney(category.limit)}{" "}
-                            {over ? (
-                              <Typography component="span" variant="body2" color="error">
-                                {`(${formatMoney(remaining)})`}
-                              </Typography>
-                            ) : (
-                              `(${formatMoney(remaining)})`
-                            )}
-                          </Typography>
-                        </S.CategoryAmounts>
-                      </S.CategoryHeading>
-                      <LinearProgress
-                        variant="determinate"
-                        value={percent}
-                        aria-label={`${category.name}: ${formatMoney(spent)} de ${formatMoney(category.limit)}`}
-                      />
-                      </S.CategoryButton>
-                    </S.CategoryItem>
-                  );
-                })}
-              </S.CategoryList>
-            )}
-          </section>
-          </S.PlanColumn>
-          <S.Statement>
-            <Typography ref={statementTitleRef} variant="h6" component="h2" gutterBottom>
-              Extrato
-            </Typography>
-            {visibleStatement.length === 0 ? (
-              <Typography color="text.secondary">{emptyStatement}</Typography>
-            ) : (
-              <List disablePadding>
-                {visibleStatement.map((entry, index) => (
-                  <Fragment key={entry.id}>
-                    {index > 0 && <Divider component="li" />}
-                    <StatementRow
-                      entry={entry}
-                      striped={index % 2 === 1}
-                      onOpen={(item) => {
-                        setEditing(item);
-                        setModalOpen(true);
-                      }}
-                      onHold={setDeleting}
-                    />
-                  </Fragment>
-                ))}
-              </List>
-            )}
-          </S.Statement>
+                return (
+                  <S.StatementGroup key={group.id}>
+                    <S.StatementCategory>
+                      <S.CategoryName>
+                        <S.Emoji aria-hidden>{group.emoji}</S.Emoji>
+                        <Typography noWrap>{group.name}</Typography>
+                      </S.CategoryName>
+                      <S.CategoryAmounts>
+                        <Typography variant="body2" color={differenceColor} fontWeight={600}>
+                          {formatMoney(difference)}
+                        </Typography>
+                      </S.CategoryAmounts>
+                    </S.StatementCategory>
+                    {group.entries.length > 0 && (
+                      <List disablePadding>
+                        {group.entries.map((entry) => (
+                          <StatementRow
+                            key={entry.id}
+                            entry={entry}
+                            onOpen={(item) => {
+                              setEditing(item);
+                              setModalOpen(true);
+                            }}
+                            onHold={setDeleting}
+                          />
+                        ))}
+                      </List>
+                    )}
+                  </S.StatementGroup>
+                );
+              })}
+            </S.StatementGroups>
+          )}
         </S.MonthLayout>
       )}
       <S.AddButton

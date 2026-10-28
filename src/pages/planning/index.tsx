@@ -21,6 +21,7 @@ import { PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "
 import { Button } from "../../components";
 import { MONTHS } from "../../constants";
 import { useFormatCurrency, useNotification } from "../../contexts";
+import { suppressHoldReleaseClick } from "../../utils";
 import {
   CategoryKind,
   MonthCategory,
@@ -120,20 +121,7 @@ const CategoryRow = ({ category, divider, onOpen, onHold }: CategoryRowProps) =>
       press.current.held = true;
       press.current.timer = 0;
       onHold(category);
-      window.addEventListener(
-        "pointerup",
-        () => {
-          window.addEventListener(
-            "click",
-            (clickEvent) => {
-              clickEvent.preventDefault();
-              clickEvent.stopPropagation();
-            },
-            { capture: true, once: true }
-          );
-        },
-        { once: true }
-      );
+      suppressHoldReleaseClick();
     }, HOLD_MS);
   };
 

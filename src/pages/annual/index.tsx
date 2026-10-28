@@ -1,16 +1,7 @@
-import {
-  CircularProgress,
-  MenuItem,
-  Select,
-  Tab,
-  Tabs,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
+import { CircularProgress, Tab, Tabs, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { MONTHS } from "../../constants";
-import { useFormatCurrency, useNotification } from "../../contexts";
+import { useAnnualYear, useFormatCurrency, useNotification } from "../../contexts";
 import {
   CategoryKind,
   MonthCategory,
@@ -19,9 +10,6 @@ import {
   subscribeMonthEntries,
 } from "../../services";
 import * as S from "./styles";
-
-const currentYear = new Date().getFullYear();
-const YEARS = Array.from({ length: 7 }, (_, index) => currentYear - 5 + index);
 
 type AnnualTab = CategoryKind | "summary";
 
@@ -101,59 +89,166 @@ const Matrix = ({ title, rows }: { title: string; rows: AnnualRow[] }) => {
   const cell = (value: number | null) => (value === null ? "—" : formatMoney(value));
 
   return (
-  <section>
-    <Typography variant="h6" component="h2" id={`${title}-titulo`} gutterBottom>
-      {title}
-    </Typography>
-    <S.Scroll>
-      <S.Table aria-labelledby={`${title}-titulo`}>
-        <thead>
-          <tr>
-            <th>Categoria</th>
-            {MONTHS.map((month) => (
-              <th key={month}>{month}</th>
-            ))}
-            <th className="total">Total</th>
-            <th>Média</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
+    <section>
+      <Typography variant="h6" component="h2" id={`${title}-titulo`} gutterBottom>
+        {title}
+      </Typography>
+      <S.Scroll>
+        <S.Table aria-labelledby={`${title}-titulo`}>
+          <thead>
             <tr>
-              <td colSpan={15}>Nenhuma categoria neste ano.</td>
+              <th>Mês</th>
+              {rows.map((row) => (
+                <th key={row.name}>
+                  {row.emoji} {row.name}
+                </th>
+              ))}
             </tr>
-          ) : (
-            rows.map((row) => {
-              const total = row.values.some((value) => value !== null) ? monthTotal(row.values) : null;
-              return (
-                <tr key={row.name}>
-                  <th>
-                    {row.emoji} {row.name}
-                  </th>
-                  {row.values.map((value, index) => (
-                    <td key={MONTHS[index]}>{cell(value)}</td>
-                  ))}
-                  <td className="total">{cell(total)}</td>
-                  <td>{cell(monthAverage(row.values))}</td>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={2}>Nenhuma categoria neste ano.</td>
+              </tr>
+            ) : (
+              <>
+                {MONTHS.map((month, monthIndex) => (
+                  <tr key={month}>
+                    <th>{month}</th>
+                    {rows.map((row) => (
+                      <td key={row.name}>{cell(row.values[monthIndex])}</td>
+                    ))}
+                  </tr>
+                ))}
+                <tr className="footer">
+                  <th>Total</th>
+                  {rows.map((row) => {
+                    const total = row.values.some((value) => value !== null)
+                      ? monthTotal(row.values)
+                      : null;
+                    return <td key={row.name}>{cell(total)}</td>;
+                  })}
                 </tr>
-              );
-            })
-          )}
-        </tbody>
-      </S.Table>
-    </S.Scroll>
-  </section>
+                <tr className="footer">
+                  <th>Média</th>
+                  {rows.map((row) => (
+                    <td key={row.name}>{cell(monthAverage(row.values))}</td>
+                  ))}
+                </tr>
+              </>
+            )}
+          </tbody>
+        </S.Table>
+      </S.Scroll>
+    </section>
   );
 };
 
 const signOf = (value: number) => (value < 0 ? "negative" : value > 0 ? "positive" : undefined);
 
-const Annual = () => {
-  const theme = useTheme();
-  const isMobileSelect = useMediaQuery(theme.breakpoints.down("sm"));
-  const { handleNotification } = useNotification();
+interface SummaryMonth {
+  income: number;
+  expenses: number;
+  economy: number;
+}
+
+const SummaryTable = ({ title, months }: { title: string; months: SummaryMonth[] }) => {
   const formatMoney = useFormatCurrency();
-  const [year, setYear] = useState(currentYear);
+  const balances = months.reduce<number[]>((list, month) => {
+    const previous = list[list.length - 1] ?? 0;
+    list.push(previous + month.economy);
+    return list;
+  }, []);
+  const incomeTotal = months.reduce((total, month) => total + month.income, 0);
+  const expenseTotal = months.reduce((total, month) => total + month.expenses, 0);
+  const economyTotal = months.reduce((total, month) => total + month.economy, 0);
+  const balanceAverage = balances.reduce((total, value) => total + value, 0) / 12;
+
+  return (
+    <section>
+      <Typography variant="h6" component="h2" id={`${title}-resumo`} gutterBottom>
+        {title}
+      </Typography>
+      <S.Scroll>
+        <S.Table aria-labelledby={`${title}-resumo`}>
+          <thead>
+            <tr>
+              <th>Mês</th>
+              <th>Renda</th>
+              <th>Despesas</th>
+              <th>Economia</th>
+              <th>Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {months.map((month, index) => (
+              <tr key={MONTHS[index]}>
+                <th>{MONTHS[index]}</th>
+                <td>
+                  <S.Amount $sign="income">{formatMoney(month.income)}</S.Amount>
+                </td>
+                <td>
+                  <S.Amount $sign="expense">{formatMoney(month.expenses)}</S.Amount>
+                </td>
+                <td>
+                  <S.Amount $sign={signOf(month.economy)}>{formatMoney(month.economy)}</S.Amount>
+                </td>
+                <td>
+                  <S.Amount $sign={signOf(balances[index])}>{formatMoney(balances[index])}</S.Amount>
+                </td>
+              </tr>
+            ))}
+            <tr className="footer">
+              <th>Total</th>
+              <td>
+                <S.Amount $sign="income">{formatMoney(incomeTotal)}</S.Amount>
+              </td>
+              <td>
+                <S.Amount $sign="expense">{formatMoney(expenseTotal)}</S.Amount>
+              </td>
+              <td>
+                <S.Amount $sign={signOf(economyTotal)}>{formatMoney(economyTotal)}</S.Amount>
+              </td>
+              <td>
+                <S.Amount $sign={signOf(economyTotal)}>{formatMoney(economyTotal)}</S.Amount>
+              </td>
+            </tr>
+            <tr className="footer">
+              <th>Média</th>
+              <td>
+                <S.Amount $sign="income">{formatMoney(incomeTotal / 12)}</S.Amount>
+              </td>
+              <td>
+                <S.Amount $sign="expense">{formatMoney(expenseTotal / 12)}</S.Amount>
+              </td>
+              <td>
+                <S.Amount $sign={signOf(economyTotal / 12)}>{formatMoney(economyTotal / 12)}</S.Amount>
+              </td>
+              <td>
+                <S.Amount $sign={signOf(balanceAverage)}>{formatMoney(balanceAverage)}</S.Amount>
+              </td>
+            </tr>
+          </tbody>
+        </S.Table>
+      </S.Scroll>
+    </section>
+  );
+};
+
+const monthSummary = (months: MonthSnapshot[], source: "planned" | "actual"): SummaryMonth[] =>
+  months.map((month) => {
+    const items =
+      source === "planned"
+        ? month.categories.map((category) => ({ kind: category.kind, amount: category.limit }))
+        : month.entries.map((entry) => ({ kind: entry.kind, amount: entry.value }));
+    const income = sumKind("income", items);
+    const expenses = sumKind("expense", items);
+    return { income, expenses, economy: income - expenses };
+  });
+
+const Annual = () => {
+  const { handleNotification } = useNotification();
+  const { year } = useAnnualYear();
   const [tab, setTab] = useState<AnnualTab>("expense");
   const [months, setMonths] = useState<MonthSnapshot[]>(emptyYear);
   const [loading, setLoading] = useState(true);
@@ -220,26 +315,6 @@ const Annual = () => {
 
   const kind: CategoryKind = tab === "income" ? "income" : "expense";
   const rows = buildRows(months, kind);
-  const summary = months.map((month) => {
-    const income = sumKind(
-      "income",
-      month.entries.map((entry) => ({ kind: entry.kind, amount: entry.value }))
-    );
-    const expenses = sumKind(
-      "expense",
-      month.entries.map((entry) => ({ kind: entry.kind, amount: entry.value }))
-    );
-    return { income, expenses, economy: income - expenses };
-  });
-  const balances = summary.reduce<number[]>((list, month) => {
-    const previous = list[list.length - 1] ?? 0;
-    list.push(previous + month.economy);
-    return list;
-  }, []);
-  const incomeTotal = summary.reduce((total, month) => total + month.income, 0);
-  const expenseTotal = summary.reduce((total, month) => total + month.expenses, 0);
-  const economyTotal = summary.reduce((total, month) => total + month.economy, 0);
-  const balanceAverage = balances.reduce((total, value) => total + value, 0) / 12;
 
   return (
     <S.Page>
@@ -249,86 +324,13 @@ const Annual = () => {
           <Tab label="Renda" value="income" />
           <Tab label="Resumo" value="summary" />
         </Tabs>
-        <S.YearField>
-          <Select
-            fullWidth
-            size={isMobileSelect ? "small" : "medium"}
-            value={year}
-            onChange={(event) => setYear(Number(event.target.value))}
-            inputProps={{ "aria-label": "Ano" }}
-          >
-            {YEARS.map((item) => (
-              <MenuItem key={item} value={item}>
-                {item}
-              </MenuItem>
-            ))}
-          </Select>
-        </S.YearField>
         {loading ? (
           <CircularProgress size={24} aria-label="Carregando ano" />
         ) : tab === "summary" ? (
-          <S.Scroll>
-            <S.Table aria-label="Resumo do ano">
-              <thead>
-                <tr>
-                  <th>Mês</th>
-                  <th>Renda</th>
-                  <th>Despesas</th>
-                  <th>Economia</th>
-                  <th>Saldo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.map((month, index) => (
-                  <tr key={MONTHS[index]}>
-                    <th>{MONTHS[index]}</th>
-                    <td>
-                      <S.Amount $sign="income">{formatMoney(month.income)}</S.Amount>
-                    </td>
-                    <td>
-                      <S.Amount $sign="expense">{formatMoney(month.expenses)}</S.Amount>
-                    </td>
-                    <td>
-                      <S.Amount $sign={signOf(month.economy)}>{formatMoney(month.economy)}</S.Amount>
-                    </td>
-                    <td>
-                      <S.Amount $sign={signOf(balances[index])}>{formatMoney(balances[index])}</S.Amount>
-                    </td>
-                  </tr>
-                ))}
-                <tr className="footer">
-                  <th>Total</th>
-                  <td>
-                    <S.Amount $sign="income">{formatMoney(incomeTotal)}</S.Amount>
-                  </td>
-                  <td>
-                    <S.Amount $sign="expense">{formatMoney(expenseTotal)}</S.Amount>
-                  </td>
-                  <td>
-                    <S.Amount $sign={signOf(economyTotal)}>{formatMoney(economyTotal)}</S.Amount>
-                  </td>
-                  <td>
-                    <S.Amount $sign={signOf(economyTotal)}>{formatMoney(economyTotal)}</S.Amount>
-                  </td>
-                </tr>
-                <tr className="footer">
-                  <th>Média</th>
-                  <td>
-                    <S.Amount $sign="income">{formatMoney(incomeTotal / 12)}</S.Amount>
-                  </td>
-                  <td>
-                    <S.Amount $sign="expense">{formatMoney(expenseTotal / 12)}</S.Amount>
-                  </td>
-                  <td>
-                    <S.Amount $sign={signOf(economyTotal / 12)}>{formatMoney(economyTotal / 12)}</S.Amount>
-                  </td>
-                  <td>
-                    <S.Amount $sign={signOf(balanceAverage)}>{formatMoney(balanceAverage)}</S.Amount>
-                  </td>
-                </tr>
-              </tbody>
-            </S.Table>
-          </S.Scroll>
+          <S.Sections>
+            <SummaryTable title="Planejado" months={monthSummary(months, "planned")} />
+            <SummaryTable title="Real" months={monthSummary(months, "actual")} />
+          </S.Sections>
         ) : (
           <S.Sections>
             <Matrix title="Planejado" rows={rows.planned} />

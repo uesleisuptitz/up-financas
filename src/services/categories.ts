@@ -26,6 +26,9 @@ export interface MonthCategory {
 export const monthPlanId = (year: number, month: number) =>
   `${year}-${String(month + 1).padStart(2, "0")}`;
 
+export const formatCategoryName = (value: string) =>
+  value.trim().toLocaleUpperCase("pt-BR");
+
 const categoriesCollection = (year: number, month: number) =>
   collection(firestore, "monthPlans", monthPlanId(year, month), "categories");
 
@@ -49,7 +52,7 @@ export const subscribeMonthCategories = (
           return {
             id: document.id,
             emoji: String(data.emoji ?? ""),
-            name: String(data.name ?? ""),
+            name: formatCategoryName(String(data.name ?? "")),
             limit: Number(data.limit ?? 0),
             kind: data.kind === "income" ? "income" : "expense",
           };
@@ -70,7 +73,7 @@ export const createMonthCategory = (input: {
 }) =>
   addDoc(categoriesCollection(input.year, input.month), {
     emoji: input.emoji.trim(),
-    name: input.name.trim(),
+    name: formatCategoryName(input.name),
     limit: input.limit,
     kind: input.kind,
     createdAt: serverTimestamp(),
@@ -94,7 +97,7 @@ export const updateMonthCategory = (input: {
     ),
     {
       emoji: input.emoji.trim(),
-      name: input.name.trim(),
+      name: formatCategoryName(input.name),
       limit: input.limit,
     }
   );
@@ -123,7 +126,7 @@ export const copyMonthCategories = async (input: {
     items.map((data, index) =>
       addDoc(categoriesCollection(input.toYear, input.toMonth), {
         emoji: String(data.emoji ?? "").trim(),
-        name: String(data.name ?? "").trim(),
+        name: formatCategoryName(String(data.name ?? "")),
         limit: Number(data.limit ?? 0),
         kind: input.kind,
         createdAt: Timestamp.fromMillis(createdAt + index),

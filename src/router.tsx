@@ -7,7 +7,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { ResponsiveDrawer } from "./components";
-import { HideValuesProvider, HomePeriodProvider, useAuth } from "./contexts";
+import { AnnualYearProvider, HideValuesProvider, HomePeriodProvider, useAuth } from "./contexts";
 import { Annual, Home, Login, Planning } from "./pages";
 
 function Router() {
@@ -45,11 +45,13 @@ function PrivateRoutes() {
 
   return (
     <HomePeriodProvider>
-      <HideValuesProvider>
-        <ResponsiveDrawer>
-          <Outlet />
-        </ResponsiveDrawer>
-      </HideValuesProvider>
+      <AnnualYearProvider>
+        <HideValuesProvider>
+          <ResponsiveDrawer>
+            <Outlet />
+          </ResponsiveDrawer>
+        </HideValuesProvider>
+      </AnnualYearProvider>
     </HomePeriodProvider>
   );
 }

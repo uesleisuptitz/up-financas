@@ -16,105 +16,34 @@ export const Page = styled.section`
 export const MonthLayout = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-
-  @media (min-width: 900px) {
-    display: grid;
-    grid-template-columns: minmax(0, 32rem) minmax(16rem, 1fr);
-    align-items: start;
-    gap: 2rem;
-  }
-`;
-
-export const Statement = styled.section`
-  @media (max-width: 899px) {
-    min-height: calc(100dvh - 3.5rem);
-  }
-`;
-
-export const PlanColumn = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  min-width: 0;
-`;
-
-export const ChartWrap = styled.div`
-  position: relative;
+  gap: 1.75rem;
   width: 100%;
-  height: 16rem;
-  overflow: visible;
-
-  .recharts-wrapper,
-  .recharts-surface {
-    overflow: visible;
-  }
-
-  @media (max-width: 899px) {
-    -webkit-tap-highlight-color: transparent;
-
-    svg,
-    svg:focus,
-    .recharts-surface:focus,
-    .recharts-sector:focus,
-    .recharts-pie-sector,
-    .recharts-pie-sector:focus,
-    .recharts-pie-sector:focus-visible,
-    .recharts-pie-sector path:focus {
-      outline: none;
-    }
-  }
+  max-width: 40rem;
 `;
 
-export const EmptyRing = styled.div`
-  position: absolute;
-  inset: 1rem;
-  border-radius: 50%;
-  border: 1.35rem solid rgba(0, 0, 0, 0.12);
-`;
-
-export const ChartCenter = styled.div`
-  position: absolute;
-  inset: 0;
+export const SpendSummary = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  pointer-events: none;
+  text-align: center;
+  gap: 0.15rem;
 `;
 
-export const CategoryList = styled.ul`
-  list-style: none;
+export const SpentAmount = styled.p<{ $over: boolean }>`
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+  font-size: 2.5rem;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: ${({ theme, $over }) =>
+    $over ? theme.palette.error.main : theme.palette.text.primary};
 `;
 
-export const CategoryItem = styled.li``;
-
-export const CategoryButton = styled.button<{ $selected?: boolean }>`
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  width: 100%;
-  padding: 0.35rem 0;
+export const PlannedHint = styled.p`
   margin: 0;
-  border: 0;
-  border-radius: 4px;
-  background: ${({ $selected }) => ($selected ? "rgba(28, 124, 69, 0.12)" : "none")};
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-`;
-
-export const CategoryHeading = styled.div`
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
 export const CategoryName = styled.div`
@@ -135,11 +64,43 @@ export const Emoji = styled.span`
   line-height: 1;
 `;
 
-export const EntryText = styled.div`
-  flex: 1;
-  min-width: 0;
+export const StatementGroups = styled.div`
   display: flex;
   flex-direction: column;
+  gap: 0.85rem;
+`;
+
+export const StatementGroup = styled.section`
+  border: 1px solid ${({ theme }) => theme.palette.divider};
+  border-radius: 12px;
+  overflow: hidden;
+  background: ${({ theme }) => theme.palette.background.paper};
+
+  ul {
+    border-top: 1px solid ${({ theme }) => theme.palette.divider};
+  }
+
+  li + li {
+    border-top: 1px solid ${({ theme }) => theme.palette.divider};
+  }
+`;
+
+export const StatementCategory = styled.header`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  background: ${({ theme }) => theme.palette.grey[100]};
+`;
+
+export const EntryLine = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
 `;
 
 export const ModalFields = styled.div`

@@ -23,7 +23,7 @@ import {
   subscribeMonthCategories,
   updateMonthEntry,
 } from "../../services";
-import { parseCurrency } from "../../utils";
+import { maskCurrencyInput, parseCurrency } from "../../utils";
 import * as S from "./styles";
 
 interface EntryModalProps {
@@ -220,6 +220,38 @@ const EntryModal = ({
         </DialogTitle>
         <DialogContent>
           <S.ModalFields>
+            <TextField
+              label="Data"
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              error={!!dateError}
+              helperText={dateError}
+              disabled={saving}
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ "aria-label": "Data" }}
+            />
+            {kind === "expense" && (
+              <FormControl fullWidth disabled={saving}>
+                <InputLabel id="entry-payment">Forma de pagamento</InputLabel>
+                <Select
+                  labelId="entry-payment"
+                  label="Forma de pagamento"
+                  value={payment}
+                  onChange={(event) => setPayment(event.target.value)}
+                >
+                  <MenuItem value="">Nenhuma</MenuItem>
+                  {payment && !PAYMENT_METHODS.includes(payment) && (
+                    <MenuItem value={payment}>{payment}</MenuItem>
+                  )}
+                  {PAYMENT_METHODS.map((method) => (
+                    <MenuItem key={method} value={method}>
+                      {method}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
             <FormControl
               fullWidth
               error={!!categoryError}
@@ -253,44 +285,19 @@ const EntryModal = ({
             <TextField
               label="Valor"
               value={value}
-              onChange={(event) => setValue(event.target.value)}
+              onChange={(event) => {
+                const formatted = maskCurrencyInput(event.target.value);
+                setValue(formatted);
+                const input = event.target;
+                requestAnimationFrame(() => {
+                  input.setSelectionRange(formatted.length, formatted.length);
+                });
+              }}
               error={!!valueError}
               helperText={valueError}
               disabled={saving}
-              inputProps={{ inputMode: "decimal", "aria-label": "Valor" }}
+              inputProps={{ inputMode: "numeric", "aria-label": "Valor" }}
             />
-            <TextField
-              label="Data"
-              type="date"
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              error={!!dateError}
-              helperText={dateError}
-              disabled={saving}
-              InputLabelProps={{ shrink: true }}
-              inputProps={{ "aria-label": "Data" }}
-            />
-            {kind === "expense" && (
-              <FormControl fullWidth disabled={saving}>
-                <InputLabel id="entry-payment">Forma de pagamento</InputLabel>
-                <Select
-                  labelId="entry-payment"
-                  label="Forma de pagamento"
-                  value={payment}
-                  onChange={(event) => setPayment(event.target.value)}
-                >
-                  <MenuItem value="">Nenhuma</MenuItem>
-                  {payment && !PAYMENT_METHODS.includes(payment) && (
-                    <MenuItem value={payment}>{payment}</MenuItem>
-                  )}
-                  {PAYMENT_METHODS.map((method) => (
-                    <MenuItem key={method} value={method}>
-                      {method}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
           </S.ModalFields>
         </DialogContent>
         <DialogActions>

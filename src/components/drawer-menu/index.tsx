@@ -22,6 +22,7 @@ import { useLocation } from "react-router-dom";
 import { getPageTitle } from "../../constants";
 import { useAuth, useHideValues } from "../../contexts";
 import HomePeriodSelects from "../../pages/home/period-selects";
+import AnnualYearSelect from "../../pages/annual/year-select";
 import Button from "../button";
 import DrawerItem from "./drawer-item";
 import * as S from "./styles";
@@ -115,6 +116,15 @@ const ResponsiveDrawer = ({ children }: ResponsiveDrawerProps) => {
           )}
           {pathname === "/" ? (
             <HomePeriodSelects placement="header" />
+          ) : pathname.startsWith("/anual") ? (
+            <>
+              <S.HeaderTitle>
+                <Typography variant="h6" component="h1">
+                  {getPageTitle(pathname)}
+                </Typography>
+              </S.HeaderTitle>
+              <AnnualYearSelect />
+            </>
           ) : (
             <S.HeaderTitle>
               <Typography variant="h6" component="h1">
